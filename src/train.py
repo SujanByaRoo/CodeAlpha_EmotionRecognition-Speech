@@ -1,8 +1,11 @@
 """
-Phase 6 (fixed): Train the CNN on MFCC features to classify emotions.
-Uses a lower learning rate + ReduceLROnPlateau to fix the training
-instability seen with the default Adam learning rate (loss was stuck
-near ln(8), i.e. random-guessing level, and val_loss was spiking).
+Phase 6 (final): Train the CNN on MFCC features to classify emotions.
+Uses a lower learning rate + ReduceLROnPlateau for stable training.
+
+Note: class weighting was tried and reverted -- it overcorrected, pushing
+the model to over-predict the "neutral" class at the expense of others,
+and dropped overall test accuracy from ~49% to ~39%. Unweighted training
+gave the best overall result, so we keep it simple here.
 """
 
 import numpy as np
