@@ -1,6 +1,6 @@
 # Emotion Recognition from Speech 🎤
 
-This is my Task 2 project for the CodeAlpha Machine Learning Internship.
+
 
 The goal is simple — give it an audio clip of someone talking, and it tries to guess what emotion they're feeling (happy, sad, angry, etc.) just from their voice.
 
@@ -79,4 +79,3 @@ python src/predict.py path/to/your/audio.wav
 
 ---
 
-Made for the CodeAlpha ML Internship.
