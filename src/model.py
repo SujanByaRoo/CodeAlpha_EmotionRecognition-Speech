@@ -1,13 +1,17 @@
 """
-Phase 5: CNN architecture for speech emotion recognition.
+Phase 5 (fixed): CNN architecture for speech emotion recognition.
 Input: MFCC "images" of shape (n_mfcc, time_steps, 1)
 Output: probability distribution over emotion classes
+
+Uses GlobalAveragePooling2D instead of Flatten to drastically cut the
+parameter count in the dense layers -- Flatten was producing a 1.7M-param
+Dense layer for only ~900 training samples, which caused unstable training.
 """
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import (
     Conv2D, MaxPooling2D, BatchNormalization,
-    Dropout, Flatten, Dense
+    Dropout, GlobalAveragePooling2D, Dense
 )
 
 
@@ -28,7 +32,7 @@ def build_cnn(input_shape, num_classes):
         MaxPooling2D(pool_size=(2, 2)),
         Dropout(0.3),
 
-        Flatten(),
+        GlobalAveragePooling2D(),
         Dense(128, activation="relu"),
         Dropout(0.4),
         Dense(num_classes, activation="softmax"),
@@ -44,6 +48,5 @@ def build_cnn(input_shape, num_classes):
 
 
 if __name__ == "__main__":
-    # Quick sanity check: build the model and print its summary
     model = build_cnn(input_shape=(40, 174, 1), num_classes=8)
     model.summary()

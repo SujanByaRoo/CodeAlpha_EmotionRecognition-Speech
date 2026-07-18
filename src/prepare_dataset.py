@@ -1,7 +1,8 @@
 """
-Phase 4: Prepare dataset for CNN training.
+Phase 4 (fixed): Prepare dataset for CNN training.
 Loads MFCC features + labels, encodes labels, splits into train/val/test,
-reshapes features to (samples, n_mfcc, time_steps, 1) for CNN input.
+normalizes PER MFCC COEFFICIENT using train-set statistics only (fixes
+unstable training caused by mismatched feature scales), reshapes for CNN.
 """
 
 import numpy as np
@@ -16,14 +17,8 @@ OUT_DIR = "data/processed"
 
 
 def load_and_prepare():
-    X = np.load(X_PATH)
+    X = np.load(X_PATH)   # shape: (samples, n_mfcc, time_steps)
     y = np.load(Y_PATH)
-
-    # Normalize features (helps CNN training converge faster)
-    X = (X - np.mean(X)) / np.std(X)
-
-    # Add channel dimension: (samples, n_mfcc, time_steps) -> (samples, n_mfcc, time_steps, 1)
-    X = X[..., np.newaxis]
 
     # Encode string labels ("happy", "sad", ...) into integers, then one-hot
     label_encoder = LabelEncoder()
@@ -32,21 +27,33 @@ def load_and_prepare():
 
     print("Classes (in order of encoding):", list(label_encoder.classes_))
 
-    # First split: train+val vs test (80/20)
+    # Split RAW (unnormalized) features first, so we compute normalization
+    # stats only from the training set (avoids leaking test/val info)
     X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y_categorical, test_size=0.2, random_state=42, stratify=y_categorical
     )
-
-    # Second split: train vs val (80/20 of the remaining 80%, i.e. 64/16/20 overall)
     X_train, X_val, y_train, y_val = train_test_split(
         X_train_val, y_train_val, test_size=0.2, random_state=42, stratify=y_train_val
     )
+
+    # Per-coefficient normalization: compute mean/std for each of the 40
+    # MFCC coefficients across the training set (axis 0=samples, 2=time)
+    mean = X_train.mean(axis=(0, 2), keepdims=True)  # shape (1, 40, 1)
+    std = X_train.std(axis=(0, 2), keepdims=True) + 1e-8
+
+    X_train = (X_train - mean) / std
+    X_val = (X_val - mean) / std
+    X_test = (X_test - mean) / std
+
+    # Add channel dimension: (samples, n_mfcc, time_steps) -> (..., 1)
+    X_train = X_train[..., np.newaxis]
+    X_val = X_val[..., np.newaxis]
+    X_test = X_test[..., np.newaxis]
 
     print(f"\nTrain shape: {X_train.shape}, {y_train.shape}")
     print(f"Val shape:   {X_val.shape}, {y_val.shape}")
     print(f"Test shape:  {X_test.shape}, {y_test.shape}")
 
-    # Save everything for the training phase
     np.save(f"{OUT_DIR}/X_train.npy", X_train)
     np.save(f"{OUT_DIR}/X_val.npy", X_val)
     np.save(f"{OUT_DIR}/X_test.npy", X_test)
@@ -55,7 +62,11 @@ def load_and_prepare():
     np.save(f"{OUT_DIR}/y_test.npy", y_test)
     np.save(f"{OUT_DIR}/label_classes.npy", label_encoder.classes_)
 
-    print("\nSaved train/val/test splits to data/processed/")
+    # Save normalization stats too — needed later for inference on new audio
+    np.save(f"{OUT_DIR}/mfcc_mean.npy", mean)
+    np.save(f"{OUT_DIR}/mfcc_std.npy", std)
+
+    print("\nSaved train/val/test splits and normalization stats to data/processed/")
 
 
 if __name__ == "__main__":
